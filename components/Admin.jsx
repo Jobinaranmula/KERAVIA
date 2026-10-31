@@ -4,94 +4,84 @@ import { useCallback, useEffect, useState } from "react";
 import { sb, fileUrl } from "@/lib/supabase";
 import { compress, upload, removeFile } from "@/lib/upload";
 
-/* SETTINGS */
 const SETTINGS = [
-  ["owner_name", "പേര് (Owner name)", "text"],
-  ["hero_subtitle", "Home — സ്വാഗത വാചകം", "area"],
+  ["owner_name", "പേര്", "text"],
+  ["hero_subtitle", "Home സ്വാഗത വാചകം", "area"],
   ["about_text", "About Me", "area"],
-  ["journey_intro", "Journey — ആമുഖം", "area"],
-  ["projects_intro", "Projects — ആമുഖം", "area"],
-  ["skills_intro", "Skills — ആമുഖം", "area"],
-  ["services_intro", "Services — ആമുഖം", "area"],
-  ["gallery_intro", "Gallery — ആമുഖം", "area"],
-  ["memories_intro", "Memories — ആമുഖം", "area"],
-  ["interests_intro", "Interests — ആമുഖം", "area"],
-  ["kerala_intro", "Kerala — ആമുഖം", "area"],
-  ["contact_intro", "Contact — ആമുഖം", "area"],
-  ["contact_email", "Contact ഇമെയിൽ", "text"],
-  ["footer_text", "Footer വാചകം", "text"],
-  ["seo_description", "SEO / Google വിവരണം", "area"],
+  ["journey_intro", "Journey ആമുഖം", "area"],
+  ["projects_intro", "Projects ആമുഖം", "area"],
+  ["skills_intro", "Skills ആമുഖം", "area"],
+  ["services_intro", "Services ആമുഖം", "area"],
+  ["gallery_intro", "Gallery ആമുഖം", "area"],
+  ["memories_intro", "Memories ആമുഖം", "area"],
+  ["interests_intro", "Interests ആമുഖം", "area"],
+  ["kerala_intro", "Kerala ആമുഖം", "area"],
+  ["contact_intro", "Contact ആമുഖം", "area"],
+  ["contact_email", "Contact Email", "text"],
+  ["footer_text", "Footer Text", "text"],
+  ["seo_description", "SEO Description", "area"],
 ];
 
-const f = (k, l, t = "text", req = false) => ({
-  k, l, t, req,
-});
-
-/* CONTENT TABLES */
 const CRUD = {
   journey: {
+    title: "Journey",
     fields: [
-      f("year", "വർഷം"),
-      f("title", "ശീർഷകം", "text", true),
-      f("body", "വിവരണം", "area"),
+      ["year", "വർഷം"],
+      ["title", "ശീർഷകം", "required"],
+      ["body", "വിവരണം", "area"],
     ],
-    img: false,
   },
-
   projects: {
+    title: "Projects",
+    image: true,
     fields: [
-      f("title", "ശീർഷകം", "text", true),
-      f("description", "വിവരണം", "area"),
-      f("url", "ലിങ്ക് (https://…)"),
+      ["title", "Project പേര്", "required"],
+      ["description", "വിവരണം", "area"],
+      ["url", "Project Link"],
     ],
-    img: true,
   },
-
   skills: {
+    title: "Skills",
     fields: [
-      f("title", "Skill പേര്", "text", true),
-      f("description", "വിവരണം", "area"),
+      ["title", "Skill പേര്", "required"],
+      ["description", "വിവരണം", "area"],
     ],
-    img: false,
   },
-
   services: {
+    title: "Services",
     fields: [
-      f("title", "Service പേര്", "text", true),
-      f("description", "വിവരണം", "area"),
+      ["title", "Service പേര്", "required"],
+      ["description", "വിവരണം", "area"],
     ],
-    img: false,
   },
-
   memories: {
+    title: "Memories",
+    image: true,
     fields: [
-      f("date_label", "തീയതി / വർഷം"),
-      f("title", "ശീർഷകം", "text", true),
-      f("body", "ഓർമ്മ", "area"),
+      ["date_label", "തീയതി / വർഷം"],
+      ["title", "ശീർഷകം", "required"],
+      ["body", "ഓർമ്മ", "area"],
     ],
-    img: true,
   },
-
   interests: {
+    title: "Interests",
     fields: [
-      f("name", "ഇഷ്ടം", "text", true),
-      f("description", "വിവരണം", "area"),
+      ["name", "ഇഷ്ടം", "required"],
+      ["description", "വിവരണം", "area"],
     ],
-    img: false,
   },
-
   kerala_items: {
+    title: "Kerala",
+    image: true,
     fields: [
-      f("title", "ശീർഷകം", "text", true),
-      f("body", "വിവരണം", "area"),
+      ["title", "ശീർഷകം", "required"],
+      ["body", "വിവരണം", "area"],
     ],
-    img: true,
   },
 };
 
-/* ADMIN TABS */
 const TABS = [
-  ["settings", "Home / About / Texts"],
+  ["settings", "Settings"],
   ["journey", "Journey"],
   ["projects", "Projects"],
   ["skills", "Skills"],
@@ -103,23 +93,38 @@ const TABS = [
   ["messages", "Messages"],
 ];
 
-/* MAIN ADMIN */
+function ErrorText({ children }) {
+  return <p className="msg err">{children}</p>;
+}
+
 export default function Admin() {
   const [state, setState] = useState("loading");
   const [tab, setTab] = useState("settings");
 
-  const check = useCallback(async (session) => {
+  const checkAdmin = useCallback(async (session) => {
     if (!session) {
       setState("out");
       return;
     }
 
-    const { data, error } = await sb()
-      .from("admins")
-      .select("user_id")
-      .maybeSingle();
+    try {
+      const { data, error } = await sb()
+        .from("admins")
+        .select("user_id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
 
-    setState(!error && data ? "in" : "denied");
+      if (error) {
+        console.error("Admin verification:", error);
+        setState("denied");
+        return;
+      }
+
+      setState(data ? "in" : "denied");
+    } catch (error) {
+      console.error(error);
+      setState("noenv");
+    }
   }, []);
 
   useEffect(() => {
@@ -127,67 +132,81 @@ export default function Admin() {
 
     try {
       client = sb();
-    } catch {
+    } catch (error) {
+      console.error(error);
       setState("noenv");
       return;
     }
 
-    client.auth.getSession().then(({ data }) => {
-      check(data.session);
-    });
+    let active = true;
+
+    client.auth.getSession()
+      .then(({ data, error }) => {
+        if (!active) return;
+
+        if (error) {
+          setState("out");
+          return;
+        }
+
+        checkAdmin(data.session);
+      })
+      .catch((error) => {
+        console.error(error);
+        if (active) setState("noenv");
+      });
 
     const { data } = client.auth.onAuthStateChange(
       (_event, session) => {
-        setTimeout(() => check(session), 0);
+        if (active) checkAdmin(session);
       }
     );
 
-    return () => data.subscription.unsubscribe();
-  }, [check]);
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, [checkAdmin]);
 
-  const logout = () => sb().auth.signOut();
+  async function logout() {
+    await sb().auth.signOut();
+    setState("out");
+  }
 
   if (state === "loading") {
-    return <p className="empty">Loading…</p>;
+    return <div className="glass formbox">Admin പരിശോധിക്കുന്നു...</div>;
   }
 
   if (state === "noenv") {
     return (
-      <p className="glass formbox err">
-        Supabase environment variables ഇല്ല.
-      </p>
+      <div className="glass formbox">
+        <ErrorText>Supabase connection പരിശോധിക്കുക.</ErrorText>
+      </div>
     );
   }
 
-  if (state === "out") {
-    return <Login />;
-  }
+  if (state === "out") return <Login />;
 
   if (state === "denied") {
     return (
       <div className="glass formbox">
-        <p className="err">
-          ഈ അക്കൗണ്ടിന് Admin അനുമതി ഇല്ല.
-        </p>
-        <button className="btn" onClick={logout}>
-          Logout
-        </button>
+        <ErrorText>ഈ അക്കൗണ്ടിന് Admin അനുമതിയില്ല.</ErrorText>
+        <button className="btn" onClick={logout}>Logout</button>
       </div>
     );
   }
 
   return (
-    <>
+    <section className="admin-panel">
       <div style={{ textAlign: "right", marginBottom: 16 }}>
-        <button className="btn sm" onClick={logout}>
-          Logout
-        </button>
+        <button className="btn sm" onClick={logout}>Logout</button>
       </div>
 
       <div className="tabs">
         {TABS.map(([key, label]) => (
           <button
             key={key}
+            type="button"
             className={tab === key ? "on" : ""}
             onClick={() => setTab(key)}
           >
@@ -196,196 +215,184 @@ export default function Admin() {
         ))}
       </div>
 
-      <div className="glass">
+      <div className="glass" style={{ padding: 20 }}>
         {tab === "settings" && <SettingsEditor />}
-
         {CRUD[tab] && (
-          <Crud
-            key={tab}
-            table={tab}
-            cfg={CRUD[tab]}
-          />
+          <Crud key={tab} table={tab} config={CRUD[tab]} />
         )}
-
         {tab === "media" && <MediaManager />}
-
         {tab === "messages" && <Messages />}
       </div>
-    </>
+    </section>
   );
 }
 
-/* LOGIN */
 function Login() {
   const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [msg, setMsg] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function go(e) {
+  async function submit(e) {
     e.preventDefault();
     setBusy(true);
-    setMsg("");
+    setMessage("");
 
-    const { error } = await sb().auth.signInWithPassword({
-      email: email.trim(),
-      password: pw,
-    });
+    try {
+      const { error } = await sb().auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      setMsg("ലോഗിൻ പരാജയപ്പെട്ടു. ഇമെയിലും പാസ്‌വേഡും പരിശോധിക്കുക.");
+      if (error) setMessage(error.message);
+    } catch (error) {
+      setMessage(error.message || "Login പരാജയപ്പെട്ടു.");
     }
 
     setBusy(false);
   }
 
   return (
-    <form className="glass formbox" onSubmit={go}>
-      <h3>Admin Login</h3>
+    <form className="glass formbox" onSubmit={submit}>
+      <h2>Admin Login</h2>
 
-      <label htmlFor="a-e">Email</label>
+      <label htmlFor="admin-email">Email</label>
       <input
-        id="a-e"
+        id="admin-email"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        required
         autoComplete="username"
-      />
-
-      <label htmlFor="a-p">Password</label>
-      <input
-        id="a-p"
-        type="password"
-        value={pw}
-        onChange={(e) => setPw(e.target.value)}
         required
-        autoComplete="current-password"
       />
 
-      <button className="btn fill" type="submit" disabled={busy}>
-        {busy ? "…" : "Login"}
+      <label htmlFor="admin-password">Password</label>
+      <input
+        id="admin-password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+        required
+      />
+
+      <button className="btn fill" disabled={busy}>
+        {busy ? "Logging in..." : "Login"}
       </button>
 
-      <div className="msg err" role="status">
-        {msg}
-      </div>
+      {message && <ErrorText>{message}</ErrorText>}
     </form>
   );
 }
 
-/* SETTINGS EDITOR */
 function SettingsEditor() {
-  const [vals, setVals] = useState({});
-  const [msg, setMsg] = useState("");
+  const [values, setValues] = useState({});
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    sb()
+  const load = useCallback(async () => {
+    const { data, error } = await sb()
       .from("site_settings")
-      .select("key,value")
-      .then(({ data, error }) => {
-        if (error) {
-          setMsg("പിശക്: " + error.message);
-        } else {
-          setVals(
-            Object.fromEntries(
-              (data || []).map((r) => [r.key, r.value])
-            )
-          );
-        }
-      });
+      .select("key,value");
+
+    if (error) {
+      setMessage("പിശക്: " + error.message);
+      return;
+    }
+
+    setValues(
+      Object.fromEntries((data || []).map((item) => [
+        item.key,
+        item.value || "",
+      ]))
+    );
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function save(e) {
     e.preventDefault();
     setBusy(true);
+    setMessage("");
 
     const rows = SETTINGS.map(([key]) => ({
       key,
-      value: (vals[key] || "").trim(),
+      value: values[key] || "",
     }));
 
     const { error } = await sb()
       .from("site_settings")
       .upsert(rows, { onConflict: "key" });
 
-    setMsg(
-      error
-        ? "പിശക്: " + error.message
-        : "സേവ് ചെയ്തു ✓"
-    );
-
+    setMessage(error ? "പിശക്: " + error.message : "സേവ് ചെയ്തു ✓");
     setBusy(false);
   }
 
   return (
     <form onSubmit={save}>
-      <h3>Home, About & പേജ് ടെക്സ്റ്റുകൾ</h3>
+      <h2>Website Settings</h2>
 
       {SETTINGS.map(([key, label, type]) => (
         <div key={key}>
-          <label htmlFor={"s-" + key}>{label}</label>
+          <label htmlFor={"setting-" + key}>{label}</label>
 
           {type === "area" ? (
             <textarea
-              id={"s-" + key}
-              value={vals[key] || ""}
+              id={"setting-" + key}
+              value={values[key] || ""}
               onChange={(e) =>
-                setVals({
-                  ...vals,
+                setValues((old) => ({
+                  ...old,
                   [key]: e.target.value,
-                })
+                }))
               }
             />
           ) : (
             <input
-              id={"s-" + key}
-              value={vals[key] || ""}
+              id={"setting-" + key}
+              value={values[key] || ""}
               onChange={(e) =>
-                setVals({
-                  ...vals,
+                setValues((old) => ({
+                  ...old,
                   [key]: e.target.value,
-                })
+                }))
               }
             />
           )}
         </div>
       ))}
 
-      <button className="btn fill" type="submit" disabled={busy}>
-        {busy ? "…" : "Save"}
+      <button className="btn fill" disabled={busy}>
+        {busy ? "Saving..." : "Save Settings"}
       </button>
 
-      <div className={"msg" + (msg.startsWith("പിശക്") ? " err" : "")}>
-        {msg}
-      </div>
+      {message && <p className="msg">{message}</p>}
     </form>
   );
 }
 
-/* ADD / EDIT / DELETE */
-function Crud({ table, cfg }) {
+function Crud({ table, config }) {
   const [rows, setRows] = useState([]);
-  const [edit, setEdit] = useState(null);
-  const [vals, setVals] = useState({});
+  const [editing, setEditing] = useState(null);
+  const [values, setValues] = useState({});
   const [file, setFile] = useState(null);
-  const [msg, setMsg] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const titleKey = (
-    cfg.fields.find((x) => x.req) || cfg.fields[0]
-  ).k;
+  const titleField = config.fields.find((field) =>
+    field.includes("required")
+  )?.[0] || config.fields[0][0];
 
   const load = useCallback(async () => {
     const { data, error } = await sb()
       .from(table)
       .select("*")
-      .order("sort_order")
-      .order("created_at");
+      .order("sort_order", { ascending: true });
 
     if (error) {
-      setMsg("പിശക്: " + error.message);
+      setMessage("പിശക്: " + error.message);
     } else {
       setRows(data || []);
     }
@@ -395,93 +402,89 @@ function Crud({ table, cfg }) {
     load();
   }, [load]);
 
-  function start(row) {
-    setEdit(row || {});
-    setVals(row ? { ...row } : {});
+  function startEdit(row = null) {
+    setEditing(row || {});
+    setValues(row ? { ...row } : {});
     setFile(null);
-    setMsg("");
+    setMessage("");
   }
 
   async function save(e) {
     e.preventDefault();
     setBusy(true);
-    setMsg("");
+    setMessage("");
 
-    let newPath = null;
+    let uploadedPath = null;
 
     try {
-      const obj = {};
+      const record = {};
 
-      cfg.fields.forEach((field) => {
-        obj[field.k] = (vals[field.k] || "").trim();
-      });
-
-      const must = cfg.fields.find((field) => field.req);
-
-      if (must && !obj[must.k]) {
-        throw new Error(must.l + " വേണം");
+      for (const [key] of config.fields) {
+        record[key] = String(values[key] || "").trim();
       }
 
-      if (
-        obj.url &&
-        !/^https?:\/\//i.test(obj.url)
-      ) {
-        throw new Error(
-          "ലിങ്ക് http:// അല്ലെങ്കിൽ https:// ൽ തുടങ്ങണം"
-        );
+      const required = config.fields.find((field) =>
+        field.includes("required")
+      );
+
+      if (required && !record[required[0]]) {
+        throw new Error(required[1] + " നൽകണം.");
       }
 
-      if (cfg.img && file) {
-        newPath = await upload(
-          table,
-          await compress(file)
-        );
-
-        obj.image_path = newPath;
+      if (record.url && !/^https?:\/\//i.test(record.url)) {
+        throw new Error("ശരിയായ http/https ലിങ്ക് നൽകുക.");
       }
 
-      if (edit.id) {
+      if (config.image && file) {
+        const prepared = file.type.startsWith("image/")
+          ? await compress(file)
+          : file;
+
+        uploadedPath = await upload(table, prepared);
+        record.image_path = uploadedPath;
+      }
+
+      if (editing.id) {
         const { error } = await sb()
           .from(table)
-          .update(obj)
-          .eq("id", edit.id);
+          .update(record)
+          .eq("id", editing.id);
 
         if (error) throw error;
 
-        if (newPath && edit.image_path) {
-          await removeFile(edit.image_path);
+        if (uploadedPath && editing.image_path) {
+          await removeFile(editing.image_path);
         }
       } else {
-        obj.sort_order =
-          rows.reduce(
-            (max, row) =>
-              Math.max(max, row.sort_order || 0),
-            0
+        record.sort_order =
+          rows.reduce((max, row) =>
+            Math.max(max, Number(row.sort_order) || 0), 0
           ) + 1;
 
         const { error } = await sb()
           .from(table)
-          .insert(obj);
+          .insert(record);
 
         if (error) throw error;
       }
 
-      setEdit(null);
+      setEditing(null);
+      setValues({});
+      setFile(null);
       await load();
-      setMsg("സേവ് ചെയ്തു ✓");
+      setMessage("സേവ് ചെയ്തു ✓");
     } catch (error) {
-      if (newPath) {
-        await removeFile(newPath).catch(() => {});
+      if (uploadedPath) {
+        await removeFile(uploadedPath).catch(() => {});
       }
-
-      setMsg("പിശക്: " + (error.message || error));
+      setMessage("പിശക്: " + (error.message || "സേവ് ചെയ്യാനായില്ല"));
     }
 
     setBusy(false);
   }
 
-  async function del(row) {
-    if (!confirm("ഇത് ഒഴിവാക്കണോ?")) return;
+  async function remove(row) {
+    if (!confirm("ഈ item ഒഴിവാക്കണോ?")) return;
 
     const { error } = await sb()
       .from(table)
@@ -489,157 +492,130 @@ function Crud({ table, cfg }) {
       .eq("id", row.id);
 
     if (error) {
-      setMsg("പിശക്: " + error.message);
+      setMessage("പിശക്: " + error.message);
       return;
     }
 
     if (row.image_path) {
-      await removeFile(row.image_path);
+      await removeFile(row.image_path).catch(() => {});
+    }
+
+    await load();
+    setMessage("ഒഴിവാക്കി ✓");
+  }
+
+  async function move(index, direction) {
+    const other = index + direction;
+    if (other < 0 || other >= rows.length) return;
+
+    const first = rows[index];
+    const second = rows[other];
+
+    const { error: firstError } = await sb()
+      .from(table)
+      .update({ sort_order: second.sort_order ?? other + 1 })
+      .eq("id", first.id);
+
+    const { error: secondError } = await sb()
+      .from(table)
+      .update({ sort_order: first.sort_order ?? index + 1 })
+      .eq("id", second.id);
+
+    if (firstError || secondError) {
+      setMessage("ക്രമം മാറ്റാൻ കഴിഞ്ഞില്ല.");
     }
 
     await load();
   }
 
-  async function move(index, direction) {
-    if (!rows[index + direction]) return;
-
-    const arr = [...rows];
-
-    [arr[index], arr[index + direction]] = [
-      arr[index + direction],
-      arr[index],
-    ];
-
-    await Promise.all(
-      arr.map((row, i) =>
-        row.sort_order === i + 1
-          ? null
-          : sb()
-              .from(table)
-              .update({ sort_order: i + 1 })
-              .eq("id", row.id)
-      )
-    );
-
-    await load();
-  }
-
-  if (edit !== null) {
+  if (editing !== null) {
     return (
       <form onSubmit={save}>
-        <h3>{edit.id ? "തിരുത്തുക" : "പുതിയത് ചേർക്കുക"}</h3>
+        <h2>{editing.id ? "തിരുത്തുക" : "പുതിയത് ചേർക്കുക"}</h2>
 
-        {cfg.fields.map((field) => (
-          <div key={field.k}>
-            <label htmlFor={"c-" + field.k}>
-              {field.l}
-            </label>
+        {config.fields.map(([key, label, type]) => (
+          <div key={key}>
+            <label htmlFor={"field-" + key}>{label}</label>
 
-            {field.t === "area" ? (
+            {type === "area" ? (
               <textarea
-                id={"c-" + field.k}
-                value={vals[field.k] || ""}
+                id={"field-" + key}
+                value={values[key] || ""}
                 onChange={(e) =>
-                  setVals({
-                    ...vals,
-                    [field.k]: e.target.value,
-                  })
+                  setValues((old) => ({
+                    ...old,
+                    [key]: e.target.value,
+                  }))
                 }
               />
             ) : (
               <input
-                id={"c-" + field.k}
-                value={vals[field.k] || ""}
+                id={"field-" + key}
+                value={values[key] || ""}
                 onChange={(e) =>
-                  setVals({
-                    ...vals,
-                    [field.k]: e.target.value,
-                  })
+                  setValues((old) => ({
+                    ...old,
+                    [key]: e.target.value,
+                  }))
                 }
               />
             )}
           </div>
         ))}
 
-        {cfg.img && (
+        {config.image && (
           <>
-            <label htmlFor="c-img">
-              ചിത്രം (ഓപ്ഷണൽ)
-            </label>
-
-            {edit.image_path && (
+            {editing.image_path && (
               <img
-                src={fileUrl(edit.image_path)}
+                src={fileUrl(editing.image_path)}
                 alt=""
-                style={{
-                  width: 120,
-                  borderRadius: 8,
-                  marginBottom: 8,
-                }}
+                style={{ width: 120, display: "block" }}
               />
             )}
 
+            <label htmlFor="content-image">ചിത്രം</label>
             <input
-              id="c-img"
+              id="content-image"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={(e) =>
-                setFile(e.target.files[0] || null)
-              }
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginTop: 20,
-            flexWrap: "wrap",
-          }}
+        <button className="btn fill" disabled={busy}>
+          {busy ? "Saving..." : "Save"}
+        </button>
+
+        <button
+          className="btn"
+          type="button"
+          onClick={() => setEditing(null)}
         >
-          <button
-            className="btn fill"
-            type="submit"
-            disabled={busy}
-          >
-            {busy ? "…" : "Save"}
-          </button>
+          Cancel
+        </button>
 
-          <button
-            className="btn"
-            type="button"
-            onClick={() => setEdit(null)}
-          >
-            Cancel
-          </button>
-        </div>
-
-        <div className={"msg" + (msg.startsWith("പിശക്") ? " err" : "")}>
-          {msg}
-        </div>
+        {message && <p className="msg">{message}</p>}
       </form>
     );
   }
 
   return (
     <div>
+      <h2>{config.title}</h2>
+
       <button
         className="btn fill"
-        style={{ marginTop: 0 }}
-        onClick={() => start(null)}
+        type="button"
+        onClick={() => startEdit()}
       >
         + പുതിയത് ചേർക്കുക
       </button>
 
-      <div className={"msg" + (msg.startsWith("പിശക്") ? " err" : "")}>
-        {msg}
-      </div>
+      {message && <p className="msg">{message}</p>}
 
       {rows.length === 0 && (
-        <p className="empty" style={{ marginTop: 10 }}>
-          ഒന്നും ചേർത്തിട്ടില്ല.
-        </p>
+        <p className="empty">ഇതുവരെ ഒന്നും ചേർത്തിട്ടില്ല.</p>
       )}
 
       {rows.map((row, index) => (
@@ -649,38 +625,21 @@ function Crud({ table, cfg }) {
           )}
 
           <div className="grow">
-            <b>{row[titleKey]}</b>
+            <b>{row[titleField]}</b>
           </div>
 
           <div className="acts">
-            <button
-              className="btn sm"
-              onClick={() => move(index, -1)}
-              disabled={index === 0}
-            >
+            <button className="btn sm" onClick={() => move(index, -1)}>
               ↑
             </button>
-
-            <button
-              className="btn sm"
-              onClick={() => move(index, 1)}
-              disabled={index === rows.length - 1}
-            >
+            <button className="btn sm" onClick={() => move(index, 1)}>
               ↓
             </button>
-
-            <button
-              className="btn sm"
-              onClick={() => start(row)}
-            >
-              തിരുത്തുക
+            <button className="btn sm" onClick={() => startEdit(row)}>
+              Edit
             </button>
-
-            <button
-              className="btn sm danger"
-              onClick={() => del(row)}
-            >
-              ഒഴിവാക്കുക
+            <button className="btn sm danger" onClick={() => remove(row)}>
+              Delete
             </button>
           </div>
         </div>
@@ -689,108 +648,67 @@ function Crud({ table, cfg }) {
   );
 }
 
-/* GALLERY */
 function MediaManager() {
   const [rows, setRows] = useState([]);
-  const [msg, setMsg] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await sb()
       .from("media")
       .select("*")
-      .order("sort_order", { ascending: false })
-      .order("created_at", { ascending: false });
+      .order("sort_order", { ascending: false });
 
-    if (error) {
-      setMsg("പിശക്: " + error.message);
-    } else {
-      setRows(data || []);
-    }
+    if (error) setMessage("പിശക്: " + error.message);
+    else setRows(data || []);
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function onFiles(e) {
+  async function uploadFiles(e) {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
 
     if (!files.length) return;
 
     setBusy(true);
-    let done = 0;
-
-    let top = rows.reduce(
-      (max, row) => Math.max(max, row.sort_order || 0),
-      0
-    );
+    let count = 0;
 
     for (const file of files) {
-      setMsg(`അപ്‌ലോഡ് ചെയ്യുന്നു… ${done + 1} / ${files.length}`);
-
       let path = null;
 
       try {
-        const kind = file.type.startsWith("video/")
-          ? "video"
-          : "image";
+        const isVideo = file.type.startsWith("video/");
+        const prepared = isVideo ? file : await compress(file);
 
-        path = await upload(
-          "gallery",
-          kind === "image" ? await compress(file) : file
-        );
+        path = await upload("gallery", prepared);
 
         const { error } = await sb()
           .from("media")
           .insert({
-            kind,
+            kind: isVideo ? "video" : "image",
             path,
             caption: "",
-            sort_order: ++top,
+            sort_order: rows.length + count + 1,
           });
 
         if (error) throw error;
-
-        done++;
+        count++;
       } catch (error) {
-        if (path) {
-          await removeFile(path).catch(() => {});
-        }
-
-        setMsg(
-          `പിശക് (${file.name}): ` +
-          (error.message || error)
-        );
-
-        setBusy(false);
-        await load();
-        return;
+        if (path) await removeFile(path).catch(() => {});
+        setMessage("പിശക്: " + error.message);
+        break;
       }
     }
 
-    setMsg(`${done} ഫയൽ ചേർത്തു ✓`);
+    if (count) setMessage(`${count} ഫയൽ ചേർത്തു ✓`);
     setBusy(false);
     await load();
   }
 
-  async function saveCaption(row, caption) {
-    if (caption === row.caption) return;
-
-    const { error } = await sb()
-      .from("media")
-      .update({ caption })
-      .eq("id", row.id);
-
-    setMsg(
-      error
-        ? "പിശക്: " + error.message
-        : "Caption സേവ് ചെയ്തു ✓"
-    );
-  }
-
-  async function del(row) {
+  async function deleteMedia(row) {
     if (!confirm("ഈ ഫയൽ ഒഴിവാക്കണോ?")) return;
 
     const { error } = await sb()
@@ -799,85 +717,77 @@ function MediaManager() {
       .eq("id", row.id);
 
     if (error) {
-      setMsg("പിശക്: " + error.message);
+      setMessage("പിശക്: " + error.message);
       return;
     }
 
-    await removeFile(row.path);
+    await removeFile(row.path).catch(() => {});
     await load();
+  }
+
+  async function saveCaption(row, caption) {
+    const { error } = await sb()
+      .from("media")
+      .update({ caption })
+      .eq("id", row.id);
+
+    setMessage(error ? "പിശക്: " + error.message : "Caption സേവ് ചെയ്തു ✓");
+    if (!error) await load();
   }
 
   return (
     <div>
-      <h3>ഫോട്ടോ / വീഡിയോ അപ്‌ലോഡ്</h3>
+      <h2>Gallery Upload</h2>
 
-      <label htmlFor="m-f">
-        ഫയലുകൾ തിരഞ്ഞെടുക്കുക
-      </label>
-
+      <label htmlFor="gallery-files">ഫോട്ടോ / വീഡിയോ തിരഞ്ഞെടുക്കുക</label>
       <input
-        id="m-f"
+        id="gallery-files"
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-        onChange={onFiles}
+        accept="image/*,video/mp4,video/webm"
+        onChange={uploadFiles}
         disabled={busy}
       />
 
-      <div className={"msg" + (msg.startsWith("പിശക്") ? " err" : "")}>
-        {msg}
-      </div>
+      {busy && <p>Upload നടക്കുന്നു...</p>}
+      {message && <p className="msg">{message}</p>}
 
       <div className="mgrid">
         {rows.map((row) => (
           <div className="mcard" key={row.id}>
             {row.kind === "video" ? (
-              <video
-                src={fileUrl(row.path)}
-                muted
-                playsInline
-                preload="metadata"
-              />
+              <video src={fileUrl(row.path)} controls />
             ) : (
-              <img
-                src={fileUrl(row.path)}
-                alt={row.caption}
-                loading="lazy"
-              />
+              <img src={fileUrl(row.path)} alt={row.caption || ""} />
             )}
 
             <input
-              defaultValue={row.caption}
+              defaultValue={row.caption || ""}
               placeholder="Caption"
-              maxLength={200}
-              onBlur={(e) =>
-                saveCaption(row, e.target.value.trim())
-              }
+              onBlur={(e) => {
+                const value = e.target.value.trim();
+                if (value !== (row.caption || "")) {
+                  saveCaption(row, value);
+                }
+              }}
             />
 
             <button
               className="btn sm danger"
-              onClick={() => del(row)}
+              onClick={() => deleteMedia(row)}
             >
-              ഒഴിവാക്കുക
+              Delete
             </button>
           </div>
         ))}
       </div>
-
-      {rows.length === 0 && (
-        <p className="empty">
-          ഒന്നും അപ്‌ലോഡ് ചെയ്തിട്ടില്ല.
-        </p>
-      )}
     </div>
   );
 }
 
-/* CONTACT MESSAGES */
 function Messages() {
   const [rows, setRows] = useState([]);
-  const [msg, setMsg] = useState("");
+  const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
     const { data, error } = await sb()
@@ -885,32 +795,25 @@ function Messages() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      setMsg("പിശക്: " + error.message);
-    } else {
-      setRows(data || []);
-    }
+    if (error) setMessage("പിശക്: " + error.message);
+    else setRows(data || []);
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function toggle(row) {
+  async function toggleRead(row) {
     const { error } = await sb()
       .from("messages")
       .update({ is_read: !row.is_read })
       .eq("id", row.id);
 
-    if (error) {
-      setMsg("പിശക്: " + error.message);
-      return;
-    }
-
-    await load();
+    if (error) setMessage("പിശക്: " + error.message);
+    else await load();
   }
 
-  async function del(row) {
+  async function removeMessage(row) {
     if (!confirm("സന്ദേശം ഒഴിവാക്കണോ?")) return;
 
     const { error } = await sb()
@@ -918,62 +821,45 @@ function Messages() {
       .delete()
       .eq("id", row.id);
 
-    if (error) {
-      setMsg("പിശക്: " + error.message);
-      return;
-    }
-
-    await load();
+    if (error) setMessage("പിശക്: " + error.message);
+    else await load();
   }
 
   return (
     <div>
-      <h3>സന്ദേശങ്ങൾ</h3>
+      <h2>Contact Messages</h2>
 
-      <div className="msg err">{msg}</div>
+      {message && <p className="msg">{message}</p>}
 
       {rows.length === 0 && (
         <p className="empty">സന്ദേശങ്ങളില്ല.</p>
       )}
 
       {rows.map((row) => (
-        <div
-          className="row"
-          key={row.id}
-          style={{ opacity: row.is_read ? 0.6 : 1 }}
-        >
+        <article className="row" key={row.id}>
           <div className="grow">
             <b>{row.name}</b>
-            {" · "}
-            <a href={`mailto:${row.email}`}>
-              {row.email}
-            </a>
-
-            <div className="yr">
-              {new Date(row.created_at).toLocaleString()}
-            </div>
-
-            <p style={{ whiteSpace: "pre-line" }}>
-              {row.body}
-            </p>
+            <p>{row.email}</p>
+            <p>{row.body}</p>
+            <small>
+              {row.created_at
+                ? new Date(row.created_at).toLocaleString()
+                : ""}
+            </small>
           </div>
 
           <div className="acts">
-            <button
-              className="btn sm"
-              onClick={() => toggle(row)}
-            >
-              {row.is_read ? "Unread" : "Mark read"}
+            <button className="btn sm" onClick={() => toggleRead(row)}>
+              {row.is_read ? "Unread" : "Read"}
             </button>
-
             <button
               className="btn sm danger"
-              onClick={() => del(row)}
+              onClick={() => removeMessage(row)}
             >
-              ഒഴിവാക്കുക
+              Delete
             </button>
           </div>
-        </div>
+        </article>
       ))}
     </div>
   );
