@@ -7,7 +7,7 @@ import { compress, upload, removeFile } from "@/lib/upload";
 /* SETTINGS */
 const SETTINGS = [
   ["owner_name", "പേര് (Owner name)", "text"],
-  ["home_intro", "Home — സ്വാഗത വാചകം", "area"],
+  ["hero_subtitle", "Home — സ്വാഗത വാചകം", "area"],
   ["about_text", "About Me", "area"],
   ["journey_intro", "Journey — ആമുഖം", "area"],
   ["projects_intro", "Projects — ആമുഖം", "area"],
